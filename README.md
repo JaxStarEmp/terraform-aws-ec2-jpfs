@@ -1,51 +1,100 @@
-# Módulo Computer
+# Módulo Terraform AWS EC2
 
-Este módulo Terraform cria uma instância EC2 na AWS com Ubuntu 22.04 LTS.
+Este módulo cria uma instância EC2 na AWS usando a imagem mais recente do Ubuntu, com base na versão informada via variável `ubuntu_version`.
 
-## Recursos Criados
+## O que o módulo cria
 
-- **aws_instance** - Instância EC2 com Ubuntu 22.04 (Jammy)
+- `aws_instance.ec2`: instância EC2
+- `data.aws_ami.ubuntu`: busca a AMI mais recente do Ubuntu da Canonical
+- Tag `Name` no formato: `${ec2_name}-${env}`
 
-## Variáveis
+## Requisitos
+
+- Terraform com provider AWS `~> 6.0`
+- Credenciais AWS configuradas
+- Região AWS definida no provider
+
+## Entradas (variáveis)
 
 | Nome | Descrição | Tipo | Obrigatório | Padrão |
 |------|-----------|------|-------------|--------|
-| `ec2_name` | Nome base da instância EC2 | `string` | Sim | - |
+| `ec2_name` | Nome base da EC2 | `string` | Sim | - |
 | `ec2_type` | Tipo da instância EC2 | `string` | Não | `t3.micro` |
-| `env` | Ambiente de deploy (ex: dev, staging, prod) | `string` | Sim | - |
+| `ubuntu_version` | Versão do Ubuntu a ser buscada na AMI | `string` | Não | `24.04` |
+| `env` | Ambiente de deploy (ex.: dev, staging, prod) | `string` | Sim | - |
+
+### Observações
+
+- A AMI é pesquisada com filtro no padrão `ubuntu/images/hvm-ssd-gp3/ubuntu-*${ubuntu_version}*-amd64-server-*`
+- A imagem é adquirida do owner `099720109477` (Canonical)
+- A instância usa a AMI encontrada automaticamente e não um ID fixo
 
 ## Outputs
 
 | Nome | Descrição |
 |------|-----------|
 | `ec2_id` | ID da instância EC2 |
-| `ec2_ip` | IP público da instância EC2 |
-| `ec2_name` | Nome completo da instância (formato: `{ec2_name}-{env}`) |
+| `ec2_ip` | IP público da EC2 |
+| `ec2_name` | Nome da EC2 conforme a tag `Name` |
+| `ec2_ami` | ID da AMI utilizada pela instância |
 
-## Exemplo de Uso
+## Exemplo de uso
 
 ```hcl
+provider "aws" {
+  region = "us-east-1"
+}
+
 module "computer" {
-  source  = "./modules/computer"
-  
-  ec2_name = "meu-servidor"
-  ec2_type = "t3.small"
-  env      = "dev"
+  source = "./"
+
+  ec2_name        = "meu-servidor"
+  ec2_type        = "t3.small"
+  ubuntu_version  = "24.04"
+  env             = "dev"
+}
+
+output "instance_id" {
+  value = module.computer.ec2_id
+}
+
+output "public_ip" {
+  value = module.computer.ec2_ip
 }
 ```
 
-## Requisitos
+### Resultado esperado
 
-- Terraform >= 1.0
-- Provider AWS ~> 6.0
-- Credenciais AWS configuradas (via variáveis de ambiente, profile ou IAM role)
+A instância criada receberá a tag:
 
-## AMI Utilizada
+```hcl
+Name = "meu-servidor-dev"
+```
 
-O módulo busca automaticamente a AMI mais recente do **Ubuntu 22.04 LTS (Jammy)** para arquitetura `amd64` com virtualização HVM, publicada pela Canonical (owner ID: `099720109477`).
+E os outputs ficarão disponíveis assim:
 
-## Tags
+```hcl
+module.computer.ec2_id
+module.computer.ec2_ip
+module.computer.ec2_name
+module.computer.ec2_ami
+```
 
-A instância recebe a tag `Name` no formato: `{ec2_name}-{env}`
+## Exemplo de utilização em outro módulo
 
-Exemplo: `meu-servidor-dev`
+Se você estiver chamando este módulo de outro diretório, a chamada pode ficar assim:
+
+```hcl
+module "computer" {
+  source = "../linuxtips-descomplicando-terraform-module-aws-ec2"
+
+  ec2_name       = "aplicacao-prod"
+  ec2_type       = "t3.micro"
+  ubuntu_version = "24.04"
+  env            = "prod"
+}
+```
+
+## Dica
+
+Para alterar a versão do Ubuntu, ajuste a variável `ubuntu_version` e o módulo buscará automaticamente a AMI correta para aquela versão.
