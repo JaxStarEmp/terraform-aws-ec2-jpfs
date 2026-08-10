@@ -7,6 +7,11 @@ variable "ec2_type" {
   default     = "t3.micro"
 }
 
+variable "ec2_volume_size" {
+  description = "Tamanho do volume da EC2"
+  default     = 10
+}
+
 variable "ubuntu_version" {
   description = "Versão do Ubuntu"
   default     = "24.04"
