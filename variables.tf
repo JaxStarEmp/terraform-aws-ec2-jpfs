@@ -20,3 +20,8 @@ variable "ubuntu_version" {
 variable "env" {
   description = "Ambiente de deploy"
 }
+
+variable "create_database" {
+  description = "Feature Flag de criação da database instance"
+  default = true
+}
