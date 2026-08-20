@@ -23,7 +23,6 @@ do Ubuntu para cada configuração informada em `instances`.
 | Nome | Descrição | Tipo | Obrigatório | Padrão |
 |------|-----------|------|-------------|--------|
 | `env` | Ambiente de deploy (ex.: dev, staging, prod) | `string` | Sim | - |
-| `create_database` | Habilita globalmente a criação das instâncias de banco | `bool` | Não | `false` |
 | `instances` | Mapa com as configurações das instâncias EC2 | `map(object)` | Sim | - |
 
 Cada entrada de `instances` deve informar `ec2_name`. Os demais atributos são

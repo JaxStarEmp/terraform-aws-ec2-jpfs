@@ -3,12 +3,6 @@ variable "env" {
   description = "Ambiente de deploy"
 }
 
-variable "create_database" {
-  type        = bool
-  description = "Feature Flag de criação da database instance"
-  default     = false
-}
-
 variable "instances" {
   type = map(object({
     ec2_name        = string
