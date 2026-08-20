@@ -19,7 +19,7 @@ resource "aws_instance" "ec2" {
 
 resource "aws_instance" "database" {
   for_each      = { for key, value in var.instances : key => value if value.create_database }
-  ami           = data.aws_ami.ubuntu.id
+  ami           = data.aws_ami.ubuntu[each.key].id
   instance_type = each.value["ec2_type"]
   tags = {
     Name = "${each.value["ec2_name"]}-db-${var.env}"
