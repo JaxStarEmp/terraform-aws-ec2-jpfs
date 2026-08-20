@@ -76,7 +76,6 @@ module "computer" {
     }
   }
   env             = "dev"
-  create_database = false
 }
 
 output "instance_id" {
@@ -148,7 +147,6 @@ module "computer" {
     }
   }
   env             = "prd"
-  create_database = true
 }
 ```
 
