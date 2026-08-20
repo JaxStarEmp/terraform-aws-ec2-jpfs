@@ -1,13 +1,14 @@
 # Módulo Terraform AWS EC2
 
-Este módulo cria uma instância EC2 na AWS usando a imagem mais recente do Ubuntu, com base na versão informada pela variável `ubuntu_version`.
+Este módulo cria uma ou mais instâncias EC2 na AWS usando a imagem mais recente
+do Ubuntu para cada configuração informada em `instances`.
 
 ## O que o módulo cria
 
-- `aws_instance.ec2`: instância EC2
-- `aws_instance.database`: instância EC2 para banco, criada condicionalmente
-- `data.aws_ami.ubuntu`: busca automaticamente a AMI do Ubuntu da Canonical
-- `ebs_block_device`: configura o disco raiz da instância com tipo `gp3` e tamanho definido por `ec2_volume_size`
+- `aws_instance.ec2`: uma instância EC2 para cada entrada de `instances`
+- `aws_instance.database`: instâncias EC2 para banco, criadas condicionalmente
+- `data.aws_ami.ubuntu`: busca uma AMI do Ubuntu da Canonical para cada entrada
+- `ebs_block_device`: configura o disco raiz de cada instância como `gp3`
 - Tag `Name` no formato: `${ec2_name}-${env}`
 - Tag `Name` da instância de banco no formato: `${ec2_name}-db-${env}`
 
@@ -21,12 +22,20 @@ Este módulo cria uma instância EC2 na AWS usando a imagem mais recente do Ubun
 
 | Nome | Descrição | Tipo | Obrigatório | Padrão |
 |------|-----------|------|-------------|--------|
-| `ec2_name` | Nome base da EC2 | `string` | Sim | - |
-| `ec2_type` | Tipo da instância EC2 | `string` | Não | `t3.micro` |
-| `ec2_volume_size` | Tamanho do volume do disco raiz em GB | `number` | Não | `10` |
-| `ubuntu_version` | Versão do Ubuntu a ser buscada na AMI | `string` | Não | `24.04` |
 | `env` | Ambiente de deploy (ex.: dev, staging, prod) | `string` | Sim | - |
-| `create_database` | Habilita a criação da instância de banco | `bool` | Não | `false` |
+| `create_database` | Habilita globalmente a criação das instâncias de banco | `bool` | Não | `false` |
+| `instances` | Mapa com as configurações das instâncias EC2 | `map(object)` | Sim | - |
+
+Cada entrada de `instances` deve informar `ec2_name`. Os demais atributos são
+opcionais e possuem os seguintes padrões:
+
+| Atributo | Descrição | Tipo | Padrão |
+|----------|-----------|------|--------|
+| `ec2_name` | Nome base da EC2 | `string` | - |
+| `ec2_type` | Tipo da instância EC2 | `string` | `t3.micro` |
+| `ec2_volume_size` | Tamanho do volume do disco raiz em GB | `number` | `10` |
+| `ubuntu_version` | Versão do Ubuntu a ser buscada na AMI | `string` | `24.04` |
+| `create_database` | Habilita a criação do banco para esta instância | `bool` | `false` |
 
 ### Observações
 
@@ -34,17 +43,19 @@ Este módulo cria uma instância EC2 na AWS usando a imagem mais recente do Ubun
 - A imagem é adquirida do owner `099720109477` (Canonical)
 - A instância usa a AMI encontrada automaticamente e não um ID fixo
 - O disco raiz é configurado como `gp3`, com `delete_on_termination = true` e volume de tamanho variável
-- A instância de banco só é criada quando `create_database = true` e `env = "prd"`
-- Em ambientes diferentes de `prd`, a instância de banco não é criada, mesmo que `create_database` esteja habilitada
+- Uma instância de banco só é criada quando a flag global `create_database` e a
+  flag `instances.<chave>.create_database` estão como `true`, e `env = "prd"`
+- Em ambientes diferentes de `prd`, as instâncias de banco não são criadas
+- As chaves de `instances` identificam cada instância nos recursos e outputs
 
 ## Outputs
 
 | Nome | Descrição |
 |------|-----------|
-| `ec2_id` | ID da instância EC2 |
-| `ec2_ip` | IP público da EC2 |
-| `ec2_name` | Nome da EC2 conforme a tag `Name` |
-| `ec2_ami` | ID da AMI utilizada pela instância |
+| `ec2_id` | Mapa de chaves e IDs das instâncias EC2 |
+| `ec2_ip` | Mapa de chaves e IPs públicos das instâncias EC2 |
+| `ec2_name` | Mapa de chaves e nomes conforme a tag `Name` |
+| `ec2_ami` | Mapa de chaves e IDs das AMIs utilizadas |
 
 ## Exemplo de uso
 
@@ -56,10 +67,15 @@ provider "aws" {
 module "computer" {
   source = "./"
 
-  ec2_name        = "meu-servidor"
-  ec2_type        = "t3.small"
-  ec2_volume_size = 20
-  ubuntu_version  = "24.04"
+  instances = {
+    app = {
+      ec2_name        = "meu-servidor"
+      ec2_type        = "t3.small"
+      ec2_volume_size = 20
+      ubuntu_version  = "24.04"
+      create_database = false
+    }
+  }
   env             = "dev"
   create_database = false
 }
@@ -103,25 +119,35 @@ module.computer.ec2_ami
 module "computer" {
   source = "../linuxtips-descomplicando-terraform-module-aws-ec2"
 
-  ec2_name        = "aplicacao-prod"
-  ec2_type        = "t3.micro"
-  ec2_volume_size = 30
-  ubuntu_version  = "24.04"
+  instances = {
+    app = {
+      ec2_name        = "aplicacao-prod"
+      ec2_type        = "t3.micro"
+      ec2_volume_size = 30
+      ubuntu_version  = "24.04"
+    }
+  }
   env             = "prod"
   create_database = false
 }
 ```
 
-Para criar a instância de banco, use `env = "prd"` e mantenha `create_database = true`:
+Para criar a instância de banco, use `env = "prd"`, mantenha a flag global
+`create_database = true` e habilite `create_database` na entrada da instância:
 
 ```hcl
 module "computer" {
   source = "../linuxtips-descomplicando-terraform-module-aws-ec2"
 
-  ec2_name        = "aplicacao"
-  ec2_type        = "t3.micro"
-  ec2_volume_size = 30
-  ubuntu_version  = "24.04"
+  instances = {
+    app = {
+      ec2_name        = "aplicacao"
+      ec2_type        = "t3.micro"
+      ec2_volume_size = 30
+      ubuntu_version  = "24.04"
+      create_database = true
+    }
+  }
   env             = "prd"
   create_database = true
 }
@@ -131,7 +157,9 @@ A instância de banco receberá a tag `Name = "aplicacao-db-prd"`.
 
 ## Dica
 
-Para alterar a versão do Ubuntu, ajuste a variável `ubuntu_version`; para aumentar o disco da EC2, ajuste `ec2_volume_size`. O módulo buscará automaticamente a AMI correta para a versão informada.
+Para alterar a versão do Ubuntu, ajuste `ubuntu_version` dentro da entrada da
+instância em `instances`; para aumentar o disco, ajuste `ec2_volume_size`. O
+módulo buscará automaticamente a AMI correta para a versão informada.
 
 ## Atualizar Tags
 

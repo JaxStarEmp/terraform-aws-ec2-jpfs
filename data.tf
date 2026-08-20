@@ -1,8 +1,9 @@
 data "aws_ami" "ubuntu" {
+  for_each    = var.instances
   most_recent = true
   filter {
     name   = "name"
-    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-*${var.ubuntu_version}*-amd64-server-*"]
+    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-*${each.value["ubuntu_version"]}*-amd64-server-*"]
   }
   filter {
     name   = "virtualization-type"

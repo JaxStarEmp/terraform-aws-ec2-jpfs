@@ -1,27 +1,21 @@
-variable "ec2_name" {
-  description = "Nome da EC2"
-}
-
-variable "ec2_type" {
-  description = "Tipo de EC2"
-  default     = "t3.micro"
-}
-
-variable "ec2_volume_size" {
-  description = "Tamanho do volume da EC2"
-  default     = 10
-}
-
-variable "ubuntu_version" {
-  description = "Versão do Ubuntu"
-  default     = "24.04"
-}
-
 variable "env" {
+  type        = string
   description = "Ambiente de deploy"
 }
 
 variable "create_database" {
+  type        = bool
   description = "Feature Flag de criação da database instance"
-  default = false
+  default     = false
+}
+
+variable "instances" {
+  type = map(object({
+    ec2_name        = string
+    ec2_type        = optional(string, "t3.micro")
+    ec2_volume_size = optional(number, 10)
+    ubuntu_version  = optional(string, "24.04")
+    create_database = optional(bool, false)
+  }))
+  description = "Mapa de objeto das informações da instâncias, como nome,tipo, volume, versão do ubuntu e se deve criar database"
 }
