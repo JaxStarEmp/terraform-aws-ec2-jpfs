@@ -23,5 +23,5 @@ variable "env" {
 
 variable "create_database" {
   description = "Feature Flag de criação da database instance"
-  default = true
+  default = false
 }
