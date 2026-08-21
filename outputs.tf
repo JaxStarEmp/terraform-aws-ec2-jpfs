@@ -24,6 +24,6 @@ output "instances" {
   value = { for id, instance in aws_instance.ec2 : id => {
     id  = instance.id
     ami = instance.ami
-    ip  = instance.ip
+    ip  = instance.public_ip
   } }
 }
