@@ -12,6 +12,18 @@ resource "aws_instance" "ec2" {
       Name = "${each.value["ec2_type"]}-${var.env}"
     }
   }
+
+  dynamic "ebs_block_device" {
+    for_each = each.value.extra_volumes
+    iterator = "vol"
+    content {
+      delete_on_termination = vol.value.delete_on_termination
+      device_name           = vol.value.device_name
+      volume_size           = vol.value.volume_size
+    }
+
+  }
+
   tags = {
     Name = "${each.value["ec2_name"]}-${var.env}"
   }
