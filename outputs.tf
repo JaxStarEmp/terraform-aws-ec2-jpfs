@@ -19,3 +19,11 @@ output "ec2_ami" {
   value       = { for key, value in data.aws_ami.ubuntu : key => value.id }
 }
 
+output "instances" {
+  description = "Retornar as informações de todas as instâncias id,ami e ip em um único ouput"
+  value = { for id, instance in aws_aws_instance.ec2 : id => {
+    id  = instance.id
+    ami = instance.ami
+    ip  = instance.ip
+  } }
+}
