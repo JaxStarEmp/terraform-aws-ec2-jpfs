@@ -69,6 +69,7 @@ extra_volumes = [
 | `ec2_ip` | Mapa de chaves e IPs públicos das instâncias EC2 |
 | `ec2_name` | Mapa de chaves e nomes conforme a tag `Name` |
 | `ec2_ami` | Mapa de chaves e IDs das AMIs utilizadas |
+| `instances` | Mapa com os dados de cada instância: `id`, `ami` e `ip` |
 
 ## Exemplo de uso
 
@@ -131,6 +132,19 @@ module.computer.ec2_id
 module.computer.ec2_ip
 module.computer.ec2_name
 module.computer.ec2_ami
+module.computer.instances
+```
+
+Exemplo do conteúdo de `module.computer.instances`:
+
+```hcl
+{
+  app = {
+    id  = "i-0123456789abcdef0"
+    ami = "ami-0123456789abcdef0"
+    ip  = "54.123.45.67"
+  }
+}
 ```
 
 ## Exemplo de utilização em outro módulo
