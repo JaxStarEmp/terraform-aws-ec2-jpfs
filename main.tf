@@ -15,7 +15,7 @@ resource "aws_instance" "ec2" {
 
   dynamic "ebs_block_device" {
     for_each = each.value.extra_volumes
-    iterator = "vol"
+    iterator = vol
     content {
       delete_on_termination = vol.value.delete_on_termination
       device_name           = vol.value.device_name
