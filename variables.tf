@@ -14,7 +14,7 @@ variable "instances" {
       delete_on_termination = bool
       device_name           = string
       volume_size           = number
-    })))
+    })), [])
   }))
   description = "Mapa de objeto das informações da instâncias, como nome,tipo, volume, versão do ubuntu e se deve criar database"
 }
