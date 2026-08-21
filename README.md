@@ -160,10 +160,37 @@ módulo buscará automaticamente a AMI correta para a versão informada.
 
 ## Atualizar Tags
 
-```bash
-# Cria tag
-git tag -a <Version> -m "Alteração"
+Para publicar uma nova versão do módulo no Git, crie uma tag anotada com a versão
+correspondente e envie essa tag para o repositório remoto.
 
-# Realiza push da tag
+```bash
+# Verifica o estado atual do repositório
+git status
+
+# Cria uma tag anotada com a versão desejada
+git tag -a v1.2.3 -m "Release v1.2.3"
+
+# Envia somente a tag criada para o remoto
+git push origin v1.2.3
+
+# Ou envia todas as tags locais para o remoto
 git push origin --tags
+```
+
+Dica: use um padrão consistente para as versões, como `v1.2.3`, para facilitar o
+controle de releases. Se a tag for criada por engano, ela pode ser removida localmente
+ou no remoto com os comandos abaixo:
+
+```bash
+# Remove a tag local
+git tag -d v1.2.3
+
+# Remove a tag no repositório remoto
+git push origin --delete v1.2.3
+```
+
+Também é possível listar as tags existentes com:
+
+```bash
+git tag
 ```
