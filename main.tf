@@ -20,6 +20,9 @@ resource "aws_instance" "ec2" {
       delete_on_termination = vol.value.delete_on_termination
       device_name           = vol.value.device_name
       volume_size           = vol.value.volume_size
+      tags = {
+        Name = "volume-${element(split("/", vol.value.device_name), -1)}-${var.env}"
+      }
     }
 
   }
