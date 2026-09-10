@@ -1,21 +1,23 @@
 # Módulo Terraform AWS EC2
 
-Este módulo cria uma ou mais instâncias EC2 na AWS usando a imagem mais recente
-do Ubuntu para cada configuração informada em `instances`.
+Este módulo cria instâncias EC2 na AWS com base em `instances`, usando Ubuntu por
+padrão, suporte a AMI customizada, anexos de volumes extras e criação condicional
+de instâncias de banco.
 
 ## O que o módulo cria
 
-- `aws_instance.ec2`: uma instância EC2 para cada entrada de `instances`
-- `aws_instance.database`: instâncias EC2 para banco, criadas condicionalmente
-- `data.aws_ami.ubuntu`: busca uma AMI do Ubuntu da Canonical para cada entrada
-- `ebs_block_device`: configura o disco raiz de cada instância como `gp3`
-- Suporte a `extra_volumes`: permite anexar discos extras por instância
-- Tag `Name` no formato: `${ec2_name}-${env}`
-- Tag `Name` da instância de banco no formato: `${ec2_name}-db-${env}`
+- `aws_instance.ec2`: uma instância EC2 para cada chave em `instances`
+- `aws_instance.database`: instâncias EC2 de banco criadas quando `create_database = true`
+- `data.aws_ami.ubuntu`: busca uma AMI Ubuntu da Canonical quando `ami_id` não for informado
+- `root_block_device` e `ebs_block_device`: configuração do disco raiz e volumes adicionais
+- `metadata_options.http_tokens = "required"`: habilita IMDSv2 para reforçar a segurança
+- Tag `Name` no formato `${ec2_name}-${env}`
+- Tag `Name` da instância de banco no formato `${ec2_name}-db-${env}`
 
 ## Requisitos
 
-- Terraform com provider AWS `~> 6.0`
+- Terraform
+- Provider AWS com versão `~> 6.0`
 - Credenciais AWS configuradas
 - Região AWS definida no provider
 
@@ -26,17 +28,18 @@ do Ubuntu para cada configuração informada em `instances`.
 | `env` | Ambiente de deploy (ex.: dev, staging, prod) | `string` | Sim | - |
 | `instances` | Mapa com as configurações das instâncias EC2 | `map(object)` | Sim | - |
 
-Cada entrada de `instances` deve informar `ec2_name`. Os demais atributos são
+Cada entrada de `instances` deve conter `ec2_name`. Os demais atributos são
 opcionais e possuem os seguintes padrões:
 
 | Atributo | Descrição | Tipo | Padrão |
 |----------|-----------|------|--------|
-| `ec2_name` | Nome base da EC2 | `string` | - |
+| `ec2_name` | Nome base da instância EC2 | `string` | - |
 | `ec2_type` | Tipo da instância EC2 | `string` | `t3.micro` |
-| `ec2_volume_size` | Tamanho do volume do disco raiz em GB | `number` | `10` |
-| `ubuntu_version` | Versão do Ubuntu a ser buscada na AMI | `string` | `24.04` |
-| `create_database` | Habilita a criação da instância de banco para esta chave | `bool` | `false` |
-| `extra_volumes` | Lista de volumes adicionais anexados à instância | `list(object)` | `[]` |
+| `ec2_volume_size` | Tamanho do volume raiz em GB | `number` | `10` |
+| `ubuntu_version` | Versão do Ubuntu usada para buscar a AMI | `string` | `24.04` |
+| `create_database` | Habilita criação da instância de banco para este item | `bool` | `false` |
+| `ami_id` | AMI customizada a ser usada; quando presente, ignora a busca por `ubuntu_version` | `string` | `null` |
+| `extra_volumes` | Lista de volumes extras anexados à instância | `list(object)` | `[]` |
 
 Cada item de `extra_volumes` deve seguir este formato:
 
@@ -54,21 +57,20 @@ extra_volumes = [
 
 - A AMI é pesquisada com filtro no padrão `ubuntu/images/hvm-ssd-gp3/ubuntu-*${ubuntu_version}*-amd64-server-*`
 - A imagem é adquirida do owner `099720109477` (Canonical)
-- A instância usa a AMI encontrada automaticamente e não um ID fixo
-- O disco raiz é configurado como `gp3`, com `delete_on_termination = true` e volume de tamanho variável
-- Os volumes extra podem ser informados em `extra_volumes` e serão anexados conforme a configuração de cada instância
-- Uma instância de banco só é criada quando `env = "prd"` e a flag `instances.<chave>.create_database` está como `true`
-- Em ambientes diferentes de `prd`, as instâncias de banco não são criadas
+- Se `ami_id` for informado, ele tem prioridade sobre a AMI buscada automaticamente
+- O disco raiz é configurado como `gp3`, criptografado e com `delete_on_termination = true`
+- Os volumes extras podem ser informados em `extra_volumes` e serão anexados conforme a configuração de cada instância
 - As chaves de `instances` identificam cada instância nos recursos e outputs
+- A criação da instância de banco é controlada pela flag `create_database`; no código atual, a lógica não aplica uma restrição por ambiente dentro do próprio módulo
 
 ## Outputs
 
 | Nome | Descrição |
 |------|-----------|
-| `ec2_id` | Mapa de chaves e IDs das instâncias EC2 |
-| `ec2_ip` | Mapa de chaves e IPs públicos das instâncias EC2 |
-| `ec2_name` | Mapa de chaves e nomes conforme a tag `Name` |
-| `ec2_ami` | Mapa de chaves e IDs das AMIs utilizadas |
+| `ec2_id` | Mapa com as chaves de `instances` e os IDs das instâncias EC2 |
+| `ec2_ip` | Mapa com as chaves de `instances` e os IPs públicos das instâncias EC2 |
+| `ec2_name` | Mapa com as chaves de `instances` e os nomes conforme a tag `Name` |
+| `ec2_ami` | Mapa com as chaves de `instances` e os IDs das AMIs utilizadas |
 | `instances` | Mapa com os dados de cada instância: `id`, `ami` e `ip` |
 
 ## Exemplo de uso
@@ -89,7 +91,8 @@ module "computer" {
       ec2_type        = "t3.small"
       ec2_volume_size = 20
       ubuntu_version  = "24.04"
-      create_database = false
+      create_database = true
+      ami_id          = null
       extra_volumes = [
         {
           delete_on_termination = true
@@ -112,10 +115,16 @@ output "public_ip" {
 
 ### Resultado esperado
 
-A instância criada receberá a tag:
+A instância principal criada receberá a tag:
 
 ```hcl
 Name = "meu-servidor-dev"
+```
+
+Se `create_database = true`, também será criada uma instância de banco com a tag:
+
+```hcl
+Name = "meu-servidor-db-dev"
 ```
 
 Além disso, o volume raiz será criado com:
@@ -147,32 +156,11 @@ Exemplo do conteúdo de `module.computer.instances`:
 }
 ```
 
-## Exemplo de utilização em outro módulo
+## Exemplo com instância de banco
 
 ```hcl
 module "computer" {
-  source = "../linuxtips-descomplicando-terraform-module-aws-ec2"
-
-  env = "prod"
-
-  instances = {
-    app = {
-      ec2_name        = "aplicacao-prod"
-      ec2_type        = "t3.micro"
-      ec2_volume_size = 30
-      ubuntu_version  = "24.04"
-      create_database = false
-    }
-  }
-}
-```
-
-Para criar a instância de banco, use `env = "prd"` e habilite a flag
-`create_database` dentro da entrada da instância:
-
-```hcl
-module "computer" {
-  source = "../linuxtips-descomplicando-terraform-module-aws-ec2"
+  source = "../terraform-aws-ec2-jpfs"
 
   env = "prd"
 
@@ -190,14 +178,16 @@ module "computer" {
 
 A instância de banco receberá a tag `Name = "aplicacao-db-prd"`.
 
+> Observação: no estado atual do módulo, a criação da instância de banco é controlada somente por `create_database = true`. O valor de `env` continua sendo usado na tag e no nome dos recursos.
+
 ## Dica
 
-Para alterar a versão do Ubuntu, ajuste `ubuntu_version` dentro da entrada da
-instância em `instances`; para aumentar o disco raiz, ajuste `ec2_volume_size`.
-Para anexar discos extras, use `extra_volumes` em cada item do mapa `instances`.
-O módulo buscará automaticamente a AMI correta para a versão informada.
+Para alterar a versão do Ubuntu, ajuste `ubuntu_version` na entrada da instância;
+para aumentar o disco raiz, ajuste `ec2_volume_size`; para anexar discos extras,
+use `extra_volumes`. Também é possível informar uma AMI específica por meio de
+`ami_id` quando a imagem precisa ser fixa ou customizada.
 
-## Atualizar Tags
+## Atualizar tags
 
 Para publicar uma nova versão do módulo no Git, crie uma tag anotada com a versão
 correspondente e envie essa tag para o repositório remoto.
@@ -217,7 +207,7 @@ git push origin --tags
 ```
 
 Dica: use um padrão consistente para as versões, como `v1.2.3`, para facilitar o
-controle de releases. Se a tag for criada por engano, ela pode ser removida localmente
+controle de releases. Se a tag for criada por engano, ela pode ser removida localmente.
 ou no remoto com os comandos abaixo:
 
 ```bash

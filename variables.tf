@@ -10,6 +10,7 @@ variable "instances" {
     ec2_volume_size = optional(number, 10)
     ubuntu_version  = optional(string, "24.04")
     create_database = optional(bool, false)
+    ami_id          = optional(string, null)
     extra_volumes = optional(list(object({
       delete_on_termination = bool
       device_name           = string
