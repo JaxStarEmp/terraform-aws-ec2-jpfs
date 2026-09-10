@@ -1,6 +1,6 @@
 resource "aws_instance" "ec2" {
   for_each      = var.instances
-  ami           = data.aws_ami.ubuntu[each.key].id
+  ami           = each.value.ami_id != null ? each.value.ami_id : data.aws_ami.ubuntu[each.key].id
   instance_type = each.value["ec2_type"]
 
   root_block_device {

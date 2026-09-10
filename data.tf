@@ -1,5 +1,5 @@
 data "aws_ami" "ubuntu" {
-  for_each    = var.instances
+  for_each    = { for k, v in var.instances : k => v if v.ami_id == null }
   most_recent = true
   filter {
     name   = "name"
