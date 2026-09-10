@@ -1,0 +1,45 @@
+name: "Pull Request - Validate"
+
+run-name: "${{ github.actor }}: Changed or Created Pull Request"
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+    branches:
+      - main
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  validate-iac:
+    name: Validate IaC
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v4
+    
+      - name: Validate Format
+        run: terraform fmt -recursive -check
+
+      - name: Init without Backend
+        run: terraform init -backend=false -input=false
+
+      - name: Config Validate
+        run: terraform validate
+    
+      - name: Trivy Scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+            scan-type: config
+            scan-ref: ${{ github.workspace }}
+            format: 'table'
+            exit-code: 1
+            severity: HIGH,CRITICAL
+
+
